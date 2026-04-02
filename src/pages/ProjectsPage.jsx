@@ -67,6 +67,13 @@ function categoryFromRelativePath(relativePath) {
   return parts.length === 1 ? "root assets" : parts[0];
 }
 
+function slugFromLabel(label) {
+  return label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function isFolderDescriptionFile(relativePath) {
   return folderDescriptionFileNames.has(nameWithoutExtension(relativePath));
 }
@@ -134,6 +141,8 @@ function buildAssetGroups() {
 }
 
 const groupedAssets = buildAssetGroups();
+const allAssets = groupedAssets.flatMap((group) => group.files);
+const imageAssets = allAssets.filter((asset) => imageExtensions.has(asset.extension));
 
 function AssetCard({ asset }) {
   const isImage = imageExtensions.has(asset.extension);
@@ -153,7 +162,7 @@ function AssetCard({ asset }) {
   );
 }
 
-function Lightbox({ asset, onClose }) {
+function Lightbox({ asset, onClose, onPreviousImage, onNextImage, canNavigateImages }) {
   const isImage = imageExtensions.has(asset.extension);
   const isPdf = asset.extension === "pdf";
   const canUseIframePreview = iframePreviewExtensions.has(asset.extension);
@@ -170,6 +179,17 @@ function Lightbox({ asset, onClose }) {
         <button className="lightbox-close" type="button" onClick={onClose}>
           close
         </button>
+
+        {isImage && canNavigateImages && (
+          <div className="lightbox-nav" aria-label="Image navigation">
+            <button type="button" onClick={onPreviousImage} aria-label="Previous image">
+              {"< prev"}
+            </button>
+            <button type="button" onClick={onNextImage} aria-label="Next image">
+              {"next >"}
+            </button>
+          </div>
+        )}
 
         <div className="lightbox-content">
           {isImage && <img src={asset.url} alt={asset.fileName} />}
@@ -208,6 +228,30 @@ function Lightbox({ asset, onClose }) {
 function ProjectsPage() {
   const [activeAsset, setActiveAsset] = useState(null);
 
+  const activeImageIndex =
+    activeAsset && imageExtensions.has(activeAsset.extension)
+      ? imageAssets.findIndex((asset) => asset.relativePath === activeAsset.relativePath)
+      : -1;
+
+  function openPreviousImage() {
+    if (activeImageIndex < 0 || imageAssets.length <= 1) {
+      return;
+    }
+
+    const previousIndex =
+      (activeImageIndex - 1 + imageAssets.length) % imageAssets.length;
+    setActiveAsset(imageAssets[previousIndex]);
+  }
+
+  function openNextImage() {
+    if (activeImageIndex < 0 || imageAssets.length <= 1) {
+      return;
+    }
+
+    const nextIndex = (activeImageIndex + 1) % imageAssets.length;
+    setActiveAsset(imageAssets[nextIndex]);
+  }
+
   useEffect(() => {
     if (!activeAsset) {
       return;
@@ -216,6 +260,12 @@ function ProjectsPage() {
     function onKeyDown(event) {
       if (event.key === "Escape") {
         setActiveAsset(null);
+      }
+      if (event.key === "ArrowLeft") {
+        openPreviousImage();
+      }
+      if (event.key === "ArrowRight") {
+        openNextImage();
       }
     }
 
@@ -226,31 +276,58 @@ function ProjectsPage() {
       document.body.style.overflow = "";
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [activeAsset]);
+  }, [activeAsset, activeImageIndex]);
 
   return (
-    <section className="panel prose">
-      <h1>Projects</h1>
-
-      {groupedAssets.map((group) => (
-        <section key={group.categoryName} className="asset-category">
-          <h2>{group.categoryName}</h2>
-          {group.description && (
-            <p className="asset-category-description">{group.description}</p>
-          )}
-          <div className="asset-grid">
-            {group.files.map((asset) => (
-              <AssetCard
-                key={asset.relativePath}
-                asset={{ ...asset, onOpen: setActiveAsset }}
-              />
+    <section className="projects-layout">
+      <aside className="projects-sidebar" aria-label="Project categories">
+        <h2>Sections</h2>
+        <nav>
+          <ul>
+            {groupedAssets.map((group) => (
+              <li key={group.categoryName}>
+                <a href={`#project-${slugFromLabel(group.categoryName)}`}>
+                  {group.categoryName}
+                </a>
+              </li>
             ))}
-          </div>
-        </section>
-      ))}
+          </ul>
+        </nav>
+      </aside>
+
+      <div className="panel prose projects-content">
+        <h1>Projects</h1>
+
+        {groupedAssets.map((group) => (
+          <section
+            key={group.categoryName}
+            id={`project-${slugFromLabel(group.categoryName)}`}
+            className="asset-category"
+          >
+            <h2>{group.categoryName}</h2>
+            {group.description && (
+              <p className="asset-category-description">{group.description}</p>
+            )}
+            <div className="asset-grid">
+              {group.files.map((asset) => (
+                <AssetCard
+                  key={asset.relativePath}
+                  asset={{ ...asset, onOpen: setActiveAsset }}
+                />
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
 
       {activeAsset && (
-        <Lightbox asset={activeAsset} onClose={() => setActiveAsset(null)} />
+        <Lightbox
+          asset={activeAsset}
+          onClose={() => setActiveAsset(null)}
+          onPreviousImage={openPreviousImage}
+          onNextImage={openNextImage}
+          canNavigateImages={imageAssets.length > 1}
+        />
       )}
     </section>
   );
