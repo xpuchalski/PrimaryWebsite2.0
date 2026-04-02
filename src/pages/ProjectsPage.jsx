@@ -231,11 +231,6 @@ function ProjectsPage() {
   return (
     <section className="panel prose">
       <h1>Projects</h1>
-      <p>
-        This page is generated automatically from the assets folder. Root files
-        are grouped under "root assets", and each subfolder is displayed as its
-        own category. Click any asset to open it in a lightbox.
-      </p>
 
       {groupedAssets.map((group) => (
         <section key={group.categoryName} className="asset-category">
