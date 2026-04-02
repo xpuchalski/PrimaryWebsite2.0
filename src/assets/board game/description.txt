@@ -1,0 +1,1 @@
+For a class --is265-- I was tasked to make a prototype physical game. I decided this would be a good avenue to spend a multitude of weeks investing my efforts into, as a result I made a production-ready board game. Over 14 testing sessions, I determined that the game is pretty fun, and just like its vague inspiration monopoly, it can end friendships with swiftness.
